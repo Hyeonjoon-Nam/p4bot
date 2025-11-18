@@ -1,0 +1,66 @@
+{
+  "p4": {
+    "port": "ssl:your-perforce-server:1666",
+    "user": "your_p4_user",
+    "client": "your_p4_client"
+  },
+
+  "poller": {
+    // Perforce depot filter for submitted changes
+    "depotFilter": "//your_depot/...",
+    // How often to poll (seconds)
+    "intervalSeconds": 30,
+
+    // Discord webhook for the shared "commit" channel
+    "webhook": "https://discord.com/api/webhooks/YOUR_COMMIT_CHANNEL_WEBHOOK",
+
+    // Optional: Perforce Swarm base URL (or "" if not used)
+    "swarmBase": "",
+
+    // Optional: per-user routing (P4 user -> personal Discord webhook)
+    "userRouting": {
+      "alice": "https://discord.com/api/webhooks/ALICE_WEBHOOK",
+      "bob": "https://discord.com/api/webhooks/BOB_WEBHOOK"
+    },
+
+    // Optional: trim these prefixes from file paths in Discord messages
+    "trimPrefixes": [
+      "//your_depot/Project/...",
+      "C:/workspace/your_depot/Project/..."
+    ],
+
+    // Runtime state / log files (relative to repo root)
+    "stateFile": "runtime/last_change.txt",
+    "logFile":   "runtime/p4_poller.log"
+  },
+
+  "openedWatcher": {
+    // Depot scope to watch for opened files
+    "depotPath": "//your_depot/...",
+
+    // Discord webhook for the "opened files" activity channel
+    "webhook": "https://discord.com/api/webhooks/YOUR_OPENED_CHANNEL_WEBHOOK",
+
+    // Snapshot + log file paths (relative)
+    "snapshotFile": "runtime/opened_snapshot.json",
+    "logFile":      "runtime/opened_watcher.log",
+
+    // Prefixes to trim from depot paths in Discord output
+    "trimPrefixes": [
+      "//your_depot/Project/",
+      "//your_depot/",
+      "//"
+    ]
+  },
+
+  "canworkBot": {
+    // Path to pythonw.exe (GUI-less Python)
+    "pythonwPath": "C:\\Path\\To\\pythonw.exe",
+    "taskName":    "P4CanWorkBot",
+    "scriptName":  "p4_canwork_bot.py",
+
+    // Discord bot token for the /canwork slash command
+    // NEVER commit a real token to source control.
+    "botToken": "YOUR_DISCORD_BOT_TOKEN"
+  }
+}

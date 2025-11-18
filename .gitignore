@@ -1,0 +1,10 @@
+# Perforce Discord bot config (local only)
+config.json
+
+# Runtime state / logs
+runtime/
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
