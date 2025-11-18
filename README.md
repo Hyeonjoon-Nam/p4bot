@@ -175,6 +175,35 @@ Logs:
 runtime/*.log
 ```
 
+## Roadmap
+
+These are realistic, planned improvements for future versions of **p4bot** — all aligned with the current architecture and fully achievable.
+
+### **1. Extended `/canwork` Features**
+- **`/notify_when_free`**  
+  Allow users to “subscribe” to a file. If someone is holding the file, the bot monitors it and automatically sends a DM or channel message when the file becomes free.
+- Automatic path correction (guessing correct paths even when partial names are given)
+- Improved matching logic for better accuracy
+
+### **2. Swarm Integration**
+If the user sets:
+```
+"swarmBase": "https://your-swarm-server"
+```
+the submit poller will attach a **“Open in Swarm”** link directly inside the Discord embed.
+
+### **3. Path Normalization Enhancements**
+- Automatic detection of depot prefixes for trimming  
+- Better normalization across Windows / Linux / hybrid environments  
+- Cleaner, more consistent path output in Discord messages
+
+### **4. Opened Watcher Filters**
+Optional filters so teams can reduce noise:
+- Monitor only specific extensions (e.g., `.uasset`, `.umap`)
+- Monitor only certain folders  
+- Ideal for large projects with heavy check-out activity
+
+
 ---
 
 ## Security
