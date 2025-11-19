@@ -5,6 +5,40 @@ This repository is designed to be **self-hosted**, meaning each user or team run
 
 ---
 
+## Who is this for?
+
+This toolkit was originally built for a small team working with Perforce in an exclusive-lock environment, but it works equally well for individuals or any collaborative workflow.
+
+By pointing the webhooks to your own private Discord channel (and optionally using `userRouting`), you can:
+
+- Track your own submitted changelists across any project (past or current)
+- Keep a lightweight “activity log” of your work without opening Perforce
+- Check whether a file is safe to work on without navigating Perforce’s UI
+
+Everything runs locally on the user’s machine — no server access or shared infrastructure required.
+
+---
+
+## Background
+This project originally started as a solution to a real workflow problem my team faced while using Perforce in an exclusive-lock environment.
+
+During previous projects, team members often had to manually check Perforce to see who submitted what, or who was holding which files. We even used to copy-paste changelist messages into a Discord channel so everyone could stay updated — a process that was easy to forget and impossible to scale.
+
+Checking who had a file opened was even worse: you either had to ask in chat or dig through Perforce’s UI to find the right folder, which slowed everyone down during busy development periods.
+
+Initially, I explored using Perforce server-side triggers to automate these tasks properly. However, our Perforce server was managed by the school’s IT department, and for security reasons they couldn't allow custom trigger scripts to be installed.
+
+So I designed a fully self-hosted alternative — a client-side automation pipeline that polls Perforce, formats the results, and posts them to Discord, all running locally on a user’s machine with no server modifications required.
+
+The project grew organically from there:
+- Submit Poller → automated changelist notifications
+- Opened Watcher → real-time visibility into who is holding which files
+- `/canwork` slash command → created to solve the Discord message length limit when many files are opened, and to make single-file checks instant and convenient
+
+What started as a patch to a recurring inconvenience has become a flexible toolset that supports both team workflows and solo developers who want better visibility into their Perforce activity.
+
+---
+
 ## Features
 
 ### 1. Submit Poller (`p4_poller/`)
@@ -18,6 +52,9 @@ A Discord slash command that checks whether a specific file is currently opened 
 
 ---
 
+> Note: While the examples use common game-development file patterns, p4bot is not engine-specific and works with any Perforce-based workflow (Unity, DCC tools, custom engines, or general depot usage).
+
+---
 ## Folder Structure
 
 ```
