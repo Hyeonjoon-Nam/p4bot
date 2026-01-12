@@ -546,37 +546,20 @@ runtime/*.log
 
 ## Roadmap
 
-These are realistic, planned improvements for future versions of **p4bot** — all aligned with the current architecture and fully achievable.
+The focus of p4bot is shifting towards **infrastructure stability** and **cross-platform support** before expanding feature sets.
 
-### 1. Extended `/canwork` Features
+### 1. DevOps & Infrastructure (Current Focus)
+* **Docker Support:** Containerizing the toolkit (Python bot + P4 CLI) to ensure it runs consistently on any environment (Linux/Windows/Server) without manual dependency setup.
+* **Jenkins CI/CD:** Implementing an automated pipeline for build verification and testing to streamline deployment.
 
-- `/notify_when_free` — allow users to “subscribe” to a file. If someone is holding the file, the bot monitors it and automatically sends a DM or channel message when the file becomes free.
-- Automatic path correction (guessing correct paths even when partial names are given).
-- Improved matching logic for better accuracy.
+### 2. Cross-Platform Compatibility
+* **Path Normalization:** Refactoring path handling to support both Windows (`\`) and Linux (`/`) separators, which is a prerequisite for running p4bot in Docker containers.
+* **Environment Agnostic:** Removing hardcoded system paths to allow flexible configuration across different operating systems.
 
-### 2. Swarm Integration
-
-If the user sets:
-
-```json
-"swarmBase": "https://your-swarm-server"
-```
-
-the submit poller will attach an **“Open in Swarm”** link directly inside the Discord embed.
-
-### 3. Path Normalization Enhancements
-
-- Automatic detection of depot prefixes for trimming.  
-- Better normalization across Windows / Linux / hybrid environments.  
-- Cleaner, more consistent path output in Discord messages.
-
-### 4. Opened Watcher Filters
-
-Optional filters so teams can reduce noise:
-
-- Monitor only specific extensions (e.g., `.uasset`, `.umap`).  
-- Monitor only certain folders.  
-- Ideal for large projects with heavy check-out activity.
+### 3. Feature Expansion
+* **Swarm Integration:** Adding an optional `"swarmBase"` config to attach "Open in Swarm" links directly inside Discord embed messages.
+* **Advanced `/canwork` Features:** Implementing `/notify_when_free` to alert users when a specific file is unlocked.
+* **Noise Reduction:** Adding filters to `Opened Watcher` to monitor only specific file extensions (e.g., `.uasset`, `.cpp`) or folders.
 
 ---
 
