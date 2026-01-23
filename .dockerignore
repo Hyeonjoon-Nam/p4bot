@@ -1,0 +1,16 @@
+.git
+.gitignore
+
+runtime/
+*.log
+*.json
+!config.json
+!config.example.json
+
+__pycache__
+*.pyc
+
+.vscode
+vscode-remote
+
+*.cmd

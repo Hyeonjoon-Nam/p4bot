@@ -4,8 +4,15 @@ param(
 )
 
 # --- P4 path auto detect ---
-$P4Path = "C:\Program Files\Perforce\p4.exe"
-if (-not (Test-Path $P4Path)) { $P4Path = "p4" }
+if (Test-Path "/usr/bin/p4") {
+    $P4Path = "/usr/bin/p4"
+} elseif (Test-Path "/usr/local/bin/p4") {
+    $P4Path = "/usr/local/bin/p4"
+} elseif (Get-Command "p4" -ErrorAction SilentlyContinue) {
+    $P4Path = "p4"
+} else {
+    $P4Path = "C:\Program Files\Perforce\p4.exe"
+}
 
 function P4 {
     param(
