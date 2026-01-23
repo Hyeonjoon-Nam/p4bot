@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Service 1: Jenkins (The Manager)
+  jenkins:
+    build: ./jenkins             # Build from the 'jenkins' folder we created
+    container_name: jenkins      # Name of the container
+    restart: unless-stopped      # Auto-restart on reboot
+    user: root                   # Root access required to use Docker CLI inside
+    ports:
+      - "8080:8080"              # Web Interface
+      - "50000:50000"            # Agent communication
+    volumes:
+      - jenkins_home:/var/jenkins_home             # Persist Jenkins data
+      - /var/run/docker.sock:/var/run/docker.sock  # Allow Jenkins to control host Docker
+
+  # Service 2: p4bot (The Worker)
+  p4bot:
+    build: .                     # Build from current directory (p4bot Dockerfile)
+    container_name: p4bot
+    restart: unless-stopped
+    network_mode: "host"         # Use host network for P4 SSL compatibility
+    volumes:
+      - ./config.json:/app/config.json  # Mount config
+      - ./runtime:/app/runtime          # Mount runtime logs/data
+
+# Persistent storage for Jenkins
+volumes:
+  jenkins_home:
