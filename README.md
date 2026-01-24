@@ -1,7 +1,7 @@
 # Perforce to Discord Automation (p4bot)
 
-A small set of tools to bridge a Perforce server with Discord.  
-This repository is designed to be **self-hosted**, meaning each user or team runs the scripts on their own machine with their own Discord webhooks and bot token.
+A small set of tools to bridge a Perforce server with Discord.
+This repository is designed to be **self-hosted**, meaning each user or team runs the scripts on their own machine (via Docker) with their own Discord webhooks and bot token.
 
 ---
 
@@ -33,9 +33,9 @@ So I designed a fully self-hosted alternative — a client-side automation pipel
 
 The project grew organically from there:
 
-- Submit Poller → automated changelist notifications  
-- Opened Watcher → real-time visibility into who is holding which files  
-- `/canwork` slash command → created to solve the Discord message length limit when many files are opened, and to make single-file checks instant and convenient  
+- Submit Poller → automated changelist notifications
+- Opened Watcher → real-time visibility into who is holding which files
+- `/canwork` slash command → created to solve the Discord message length limit when many files are opened, and to make single-file checks instant and convenient
 
 What started as a patch to a recurring inconvenience has become a flexible toolset that supports both team workflows and solo developers who want better visibility into their Perforce activity.
 
@@ -44,18 +44,15 @@ What started as a patch to a recurring inconvenience has become a flexible tools
 ## Features
 
 ### 1. Submit Poller (`p4_poller/`)
-
 Watches submitted Perforce changelists and posts embed messages to a Discord channel.
 
 ### 2. Opened Watcher (`opened_watcher/`)
-
 Periodically runs `p4 opened` and reports who is currently holding which files.
 
 ### 3. `/canwork` Bot (`canwork_bot/`)
-
 A Discord slash command that checks whether a specific file is currently opened in Perforce.
 
-> Note: While the examples use common game-development file patterns, p4bot is not engine-specific and works with any Perforce-based workflow (Unity, DCC tools, custom engines, or general depot usage).
+> **Note:** This project is now **Dockerized**. It runs inside a container, making it compatible with Windows, Linux, and macOS without complex environment setup.
 
 ---
 
@@ -64,20 +61,18 @@ A Discord slash command that checks whether a specific file is currently opened 
 ```text
 p4bot/
  ├─ p4_poller/
- │   ├─ p4-poller.ps1
- │   └─ run_poller.cmd
+ │   └─ p4-poller.ps1
  ├─ opened_watcher/
- │   ├─ opened_watcher_min.ps1
- │   └─ run_opened_watcher.cmd
+ │   └─ opened_watcher_min.ps1
  ├─ canwork_bot/
- │   ├─ p4_canwork_bot.py
- │   ├─ canwork_task.ps1
- │   └─ run_canwork_bot.cmd
- ├─ runtime/
+ │   └─ p4_canwork_bot.py
+ ├─ runtime/                 # Mapped to container volume
  │   ├─ last_change.txt
  │   ├─ opened_snapshot.json
  │   └─ logs...
  ├─ config.example.json
+ ├─ Dockerfile               # Docker build definition
+ ├─ start.sh                 # Container entrypoint
  └─ README.md
 ```
 
@@ -85,459 +80,139 @@ p4bot/
 
 ## Requirements
 
-- Windows
-- Perforce CLI (`p4`) available in `PATH`
-- Python 3.10+ (only required for `/canwork`)
-- Discord bot token (only required for `/canwork`)
-- Windows Task Scheduler
+- **Docker Desktop** (Windows, Linux, or Mac)
+- **Git**
+- Perforce Account (P4USER, Password)
+- Discord Bot Token & Webhook URLs
 
 ---
 
 ## Installation
 
-This section walks through the **exact steps** to get p4bot running on your own machine.
+This section walks through the **exact steps** to get p4bot running on your own machine using Docker.
 
-### 1. Clone or place the repository
+### 1. Clone the repository
 
-1. Choose a folder on your machine, for example:
+1. Choose a folder on your machine, for example `C:\p4bot`.
+2. Clone from GitHub:
 
-   ```text
-   C:\p4bot
+   ```bash
+   git clone [https://github.com/Hyeonjoon-Nam/p4bot.git](https://github.com/Hyeonjoon-Nam/p4bot.git) C:\p4bot
    ```
 
-2. Either:
-   - Clone from GitHub:
-
-     ```powershell
-     git clone https://github.com/Hyeonjoon-Nam/p4bot.git C:\p4bot
-     ```
-
-   - Or download as ZIP from GitHub and extract it into `C:\p4bot`.
-
-All paths in this README assume `C:\p4bot` as the root, but any folder is fine.
-
----
-
-### 2. Create your own `config.json` (step-by-step)
+### 2. Create your own `config.json`
 
 All configuration happens in a single file.
 
-#### 2.1 Copy the example file
+1. Copy `config.example.json` to `config.json`.
+2. Open `config.json` and fill in the details below.
 
-1. In the repo root, find:
-
-   ```text
-   config.example.json
-   ```
-
-2. Make a copy and rename it to:
-
-   ```text
-   config.json
-   ```
-
-3. Open `config.json` in a text editor (VS Code, Notepad++, etc.).
-
-You will see sections like `p4`, `poller`, `openedWatcher`, and `canworkBot`.
-
----
-
-#### 2.2 Fill in Perforce server info (`p4` section)
-
-This section tells p4bot how to talk to your Perforce server:
+#### 2.1 Perforce Info (`p4`)
 
 ```jsonc
 "p4": {
-  "port":   "ssl:your-perforce-server:xxxx",
+  "port":   "ssl:your-perforce-server:1666",
   "user":   "your_p4_user",
-  "client": "your_p4_client"
+  "client": "your_p4_workspace_name"
 }
 ```
 
-- **`port` (P4PORT)**  
-  - This is the address of your Perforce server.  
-  - If you already use Perforce on this machine:
-    - In a command prompt, run:
-
-      ```powershell
-      p4 set P4PORT
-      ```
-
-      and copy the value into `"port"`.  
-    - Or open P4V → **Connection → Edit Current Workspace** and copy the *Server* field.
-  - Example: `"ssl:perforce.mycompany.com:xxxx"`
-
-- **`user` (P4USER)**  
-  - Your Perforce username.  
-  - Check with:
-
-    ```powershell
-    p4 set P4USER
-    ```
-
-    or from P4V under **Connection → Edit Current Workspace → User**.
-
-- **`client` (P4CLIENT / workspace name)**  
-  - The name of the workspace/client you use on this machine.  
-  - Check with:
-
-    ```powershell
-    p4 set P4CLIENT
-    ```
-
-    or from P4V under **Connection → Edit Current Workspace → Workspace**.
-
-If you are unsure about any of these values, ask whoever manages your Perforce server — they will usually know your P4PORT and help confirm your user/workspace.
-
----
-
-#### 2.3 Create Discord webhooks for `poller` and `openedWatcher`
-
-You need **at least one** Discord webhook for the submit poller, and **optionally another** for the opened-file watcher.
-
-##### 2.3.1 Create a webhook in Discord
-
-Repeat these steps for each channel you want:
-
-1. Open Discord and go to the server where you want messages.
-2. Create or choose a text channel, for example `#perforce-commits`.
-3. Click the **⚙️ Settings** icon next to the channel name.
-4. In the left sidebar, select **Integrations**.
-5. Under **Webhooks**, click **New Webhook**.
-6. Give it a name (e.g., `P4 Submit Poller`) and select the target channel.
-7. Click **Copy Webhook URL**.
-8. Click **Save Changes**.
-
-Keep that URL handy — you will paste it into `config.json`.
-
-##### 2.3.2 Configure the submit poller webhook
-
-In `config.json`, find the `poller` section:
+#### 2.2 Webhooks (`poller` & `openedWatcher`)
 
 ```jsonc
 "poller": {
+  "webhook": "[https://discord.com/api/webhooks/](https://discord.com/api/webhooks/)...",
   "depotFilter": "//your_depot/...",
-  "intervalSeconds": 30,
-  "webhook": "https://discord.com/api/webhooks/XXXXX/XXXXX",
-  "swarmBase": "",
-  "userRouting": {},
-  "trimPrefixes": [
-    "//your_depot/Project/..."
-  ],
-  "stateFile": "runtime/last_change.txt",
-  "logFile":   "runtime/p4_poller.log"
+  "intervalSeconds": 30
 }
 ```
+* **webhook**: Create a webhook in your Discord channel settings and paste the URL here.
 
-Set:
-
-- **`webhook`**  
-  - Paste the webhook URL you copied from Discord (e.g., from the `#perforce-commits` channel).
-
-- **`depotFilter`**  
-  - Restricts which submitted changelists are reported.  
-  - Example: only your project depot:
-
-    ```json
-    "depotFilter": "//MyProject/..."
-    ```
-
-- **`intervalSeconds`**  
-  - How often the script checks Perforce for new submissions (in seconds).  
-  - 30–60 seconds is usually fine.
-
-- **`userRouting` (optional)**  
-  - Lets you send *extra* notifications for specific Perforce users to their own private channels.  
-  - Example:
-
-    ```json
-    "userRouting": {
-      "alice": "https://discord.com/api/webhooks/ALICE_WEBHOOK",
-      "bob":   "https://discord.com/api/webhooks/BOB_WEBHOOK"
-    }
-    ```
-
-  - To set this up:
-    1. Repeat the webhook-creation steps above for each user’s private channel.
-    2. Paste each user’s webhook URL here, keyed by their Perforce username.
-
-##### 2.3.3 Configure the opened watcher webhook
-
-In `config.json`, find the `openedWatcher` section:
+#### 2.3 Bot Token (`canworkBot`)
 
 ```jsonc
-"openedWatcher": {
-  "depotPath":   "//your_depot/...",
-  "webhook":     "https://discord.com/api/webhooks/XXXXX/XXXXX",
-  "snapshotFile": "runtime/opened_snapshot.json",
-  "logFile":      "runtime/opened_watcher.log",
-  "trimPrefixes": [
-    "//your_depot/Project/",
-    "//your_depot/",
-    "//"
-  ]
+"canworkBot": {
+  "botToken": "YOUR_DISCORD_BOT_TOKEN_HERE"
 }
 ```
-
-Set:
-
-- **`depotPath`**  
-  - The depot scope for `p4 opened`.  
-  - Example: `"//MyProject/..."` to only track files from one project.
-
-- **`webhook`**  
-  - Webhook URL for the **“opened files”** channel, e.g., `#perforce-opened`.  
-  - Create this webhook the same way as above.
+* Create a bot in the [Discord Developer Portal](https://discord.com/developers/applications).
+* Enable **MESSAGE CONTENT INTENT** in the Bot settings.
+* Copy the token and paste it here.
 
 ---
 
-#### 2.4 Create a Discord bot and token for `/canwork`
+## Docker Build & Run (The New Way)
 
-This part is **only required** if you want to use the `/canwork` slash command.  
-The poller and opened watcher only need webhooks and work without a bot.
+Instead of using Windows Task Scheduler, we now use Docker to run everything in the background.
 
-##### 2.4.1 Create a Discord application + bot
+### 1. Build the Image
 
-1. Go to the Discord Developer Portal:  
-   <https://discord.com/developers/applications>
-2. Log in with your Discord account.
-3. Click **New Application** (top-right).
-4. Enter a name (e.g., `P4CanWorkBot`) and click **Create**.
-5. Click your new application in the list, and in the left sidebar click **Bot**.  
-   (You’ll configure its token and intents in the next steps.)
-
-Now you have a bot user.
-
-##### 2.4.2 Enable required intents
-
-Still under **Bot** in the sidebar:
-
-1. Scroll down to **Privileged Gateway Intents**.
-2. Turn on:
-   - **MESSAGE CONTENT INTENT**
-3. Click **Save Changes** at the bottom.
-
-(The bot primarily uses slash commands, but enabling message content intent is safe for future extensions.)
-
-##### 2.4.3 Copy the bot token
-
-1. Under **Bot**, in the **Token** section, click **Reset Token** (if needed), then **Copy**.
-2. Open your `config.json`.
-3. In the `canworkBot` section, set:
-
-   ```jsonc
-   "canworkBot": {
-     "pythonwPath": "C:\\Path\\To\\pythonw.exe",
-     "taskName":    "P4CanWorkBot",
-     "scriptName":  "p4_canwork_bot.py",
-     "botToken":    "YOUR_DISCORD_BOT_TOKEN_HERE"
-   }
-   ```
-
-   - Replace `"YOUR_DISCORD_BOT_TOKEN_HERE"` with the token you copied.
-
-> **Important:** Treat this token like a password.  
-> Never commit your real token to Git, and never share it publicly.
-
-##### 2.4.4 Invite the bot to your server
-
-1. In the Developer Portal, go to your application.
-2. Click **OAuth2 → URL Generator** (left sidebar).
-3. Under **Scopes**, check:
-   - `bot`
-   - `applications.commands`
-4. Under **Bot Permissions**, check at minimum:
-   - **Send Messages**
-   - **Use Slash Commands**
-5. Copy the generated URL at the bottom.
-6. Paste the URL into your browser, choose the target server, and click **Authorize**.
-
-The bot should now appear in your server’s member list.
-
----
-
-#### 2.5 Configure `pythonwPath` (for `/canwork`)
-
-In the `canworkBot` section:
-
-```jsonc
-"pythonwPath": "C:\\Path\\To\\pythonw.exe"
-```
-
-- This should point to your `pythonw.exe` (the GUI-less Python executable).  
-- Typical locations:
-
-  ```text
-  C:\Users\<you>\AppData\Local\Programs\Python\Python312\pythonw.exe
-  ```
-
-- You can find it by:
-  1. Opening your Python installation directory.
-  2. Copying the full path to `pythonw.exe`.
-
----
-
-#### 2.6 Optional: Trim prefixes for cleaner paths
-
-Both `poller` and `openedWatcher` support `trimPrefixes`, which are strings that will be removed from file paths before sending them to Discord.
-
-Example:
-
-```jsonc
-"trimPrefixes": [
-  "//MyProject/Main/",
-  "//MyProject/",
-  "//"
-]
-```
-
-If the raw depot path is:
-
-```text
-//MyProject/Main/Content/Maps/MyMap.umap
-```
-
-The displayed path after trimming becomes:
-
-```text
-Content/Maps/MyMap.umap
-```
-
-You can add as many prefixes as you like; the script will strip the first matching one.
-
----
-
-### 3. Runtime files
-
-You do **not** need to edit any runtime files manually.
-
-- By default, the scripts store state and logs under:
-
-  ```text
-  runtime/
-    last_change.txt
-    opened_snapshot.json
-    *.log
-  ```
-
-- If the `runtime/` folder does not exist, create an empty `runtime` folder at the repo root before running the scripts for the first time.
-
----
-
-## Config Reference
-
-### `p4`
-
-- `port`: P4PORT  
-- `user`: P4USER  
-- `client`: P4CLIENT  
-
-### `poller`
-
-- `depotFilter`: Path to watch for submitted changes  
-- `intervalSeconds`: Poll interval  
-- `webhook`: Discord webhook  
-- `userRouting`: Optional per-user extra webhooks  
-- `trimPrefixes`: Remove long path prefixes  
-
-### `openedWatcher`
-
-- `depotPath`: Path for `p4 opened`  
-- `snapshotFile`: JSON state saved locally  
-- `webhook`: Discord webhook  
-- `trimPrefixes`: Output cleanup  
-
-### `canworkBot`
-
-- `botToken`: Discord bot token  
-- `pythonwPath`: Path to pythonw.exe  
-- `taskName`: Scheduled task name  
-- `scriptName`: Bot Python file  
-
----
-
-## Running Scripts Manually
-
-### Submit Poller
+Run this command in the repository root. (Add `--no-cache` if you modified scripts).
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\p4_poller\p4-poller.ps1
+docker build --no-cache --network=host -t p4bot:v1 .
 ```
 
-### Opened Watcher
+### 2. Run the Container
+
+This runs the bot in the background (`-d`) and ensures it restarts automatically (`--restart unless-stopped`).
+We mount the `config.json` and `runtime/` folder so logs and state are saved on your host machine.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\opened_watcher\opened_watcher_min.ps1
+docker run -d --name p4bot --restart unless-stopped `
+  -v ${PWD}/config.json:/app/config.json `
+  -v ${PWD}/runtime:/app/runtime `
+  p4bot:v1
 ```
 
-### CanWork Bot
+### 3. Verify Execution
+
+Check the logs to see if everything started correctly.
 
 ```powershell
-python p4_canwork_bot.py
+docker logs -f p4bot
 ```
 
 ---
 
-## Register Scheduled Tasks (Auto-Start)
+## Maintenance (Important)
 
-The recommended way to run everything in the background is via Windows Task Scheduler.
+### Daily Login (Manual for now)
+Since Perforce tickets typically expire every 12 hours, and the bot runs inside a container, **you must refresh the login session manually once a day**.
 
-### Submit Poller
-
-Runs at logon and loops internally.
-
-### Opened Watcher
-
-Runs at logon and loops internally.
-
-### CanWork Bot
-
-Uses `pythonw.exe` (no console window).
-
-To register the `/canwork` bot task:
+(Automated login via Jenkins is planned for the next update).
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\canwork_bot\canwork_task.ps1
-```
+# 1. Enter the container and run p4 login
+docker exec -it p4bot p4 login
 
-You can verify the tasks in **Task Scheduler → Task Scheduler Library**.
+# 2. (Type your password and press Enter)
+```
 
 ---
 
 ## Discord Slash Command Setup
 
-Once the bot is configured and invited to your server:
+1. Invite the bot to your server using the OAuth2 URL Generator in the Discord Developer Portal (Scopes: `bot`, `applications.commands`).
+2. Once the container is running, the `/canwork` command will sync automatically.
 
-1. Ensure your bot token is correctly set in `config.json → canworkBot.botToken`.
-2. Start the bot once (manually or via Task Scheduler):
-
-   ```powershell
-   python .\canwork_bot\p4_canwork_bot.py
-   ```
-
-3. On first startup, the bot will auto-register the `/canwork` command with Discord.
-
-Usage in any channel where the bot has access:
-
-```text
+**Usage:**
+```
 /canwork filename: Content/Maps/MyMap.umap
 ```
-
-The bot looks up currently opened files (based on your `openedWatcher` scope) and replies whether the file is free or held by someone.
 
 ---
 
 ## Troubleshooting
 
-| Issue                   | Fix                                     |
-|-------------------------|------------------------------------------|
-| Bot not starting        | Token missing or wrong in `config.json` |
-| Snapshot missing        | Run `opened_watcher` first               |
-| No changelist messages  | Wrong poller webhook or depot filter    |
-| Wrong path matching     | Update `trimPrefixes`                   |
+| Issue | Fix |
+|------|-----|
+| **`p4 trust` error** | Run `docker exec -it p4bot p4 trust -y` manually. |
+| **Session expired** | Run `docker exec -it p4bot p4 login`. |
+| **Bot not responding** | Check logs with `docker logs --tail 50 p4bot`. |
+| **Call depth overflow** | Ensure `.ps1` scripts use absolute paths (fixed in v1). |
 
-Logs:
-
+Logs are available at:
 ```text
 runtime/*.log
 ```
@@ -549,24 +224,19 @@ runtime/*.log
 The focus of p4bot is shifting towards **infrastructure stability** and **cross-platform support** before expanding feature sets.
 
 ### 1. DevOps & Infrastructure (Current Focus)
-* **Docker Support:** Containerizing the toolkit (Python bot + P4 CLI) to ensure it runs consistently on any environment (Linux/Windows/Server) without manual dependency setup.
-* **Jenkins CI/CD:** Implementing an automated pipeline for build verification and testing to streamline deployment.
+* **Docker Support (Done):** Containerizing the toolkit (Python bot + P4 CLI) to ensure it runs consistently on any environment (Linux/Windows/Server).
+* **Jenkins CI/CD (Next):** Implementing an automated pipeline for build verification and testing to streamline deployment.
 
 ### 2. Cross-Platform Compatibility
-* **Path Normalization:** Refactoring path handling to support both Windows (`\`) and Linux (`/`) separators, which is a prerequisite for running p4bot in Docker containers.
+* **Path Normalization:** Refactoring path handling to support both Windows (`\`) and Linux (`/`) separators.
 * **Environment Agnostic:** Removing hardcoded system paths to allow flexible configuration across different operating systems.
-
-### 3. Feature Expansion
-* **Swarm Integration:** Adding an optional `"swarmBase"` config to attach "Open in Swarm" links directly inside Discord embed messages.
-* **Advanced `/canwork` Features:** Implementing `/notify_when_free` to alert users when a specific file is unlocked.
-* **Noise Reduction:** Adding filters to `Opened Watcher` to monitor only specific file extensions (e.g., `.uasset`, `.cpp`) or folders.
 
 ---
 
 ## Security
 
-- Never commit `config.json`.  
-- Do not upload real webhooks or tokens.  
+- Never commit `config.json`.
+- Do not upload real webhooks or tokens.
 - Use `config.example.json` for sharing.
 
 ---
@@ -574,3 +244,4 @@ The focus of p4bot is shifting towards **infrastructure stability** and **cross-
 ## License
 
 MIT
+
