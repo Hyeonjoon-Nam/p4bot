@@ -52,7 +52,7 @@ Periodically runs `p4 opened` and reports who is currently holding which files.
 ### 3. `/canwork` Bot (`canwork_bot/`)
 A Discord slash command that checks whether a specific file is currently opened in Perforce.
 
-> **Note:** This project is now **Dockerized**. It runs inside a container, making it compatible with Windows, Linux, and macOS without complex environment setup.
+> **Note:** This project is fully **Dockerized**. It runs inside a container, making it compatible with Windows, Linux, and macOS without complex environment setup.
 
 ---
 
@@ -66,13 +66,14 @@ p4bot/
  │   └─ opened_watcher_min.ps1
  ├─ canwork_bot/
  │   └─ p4_canwork_bot.py
- ├─ runtime/                 # Mapped to container volume
+ ├─ runtime/                 # Mapped to container volume (Logs & State)
  │   ├─ last_change.txt
  │   ├─ opened_snapshot.json
  │   └─ logs...
  ├─ config.example.json
  ├─ Dockerfile               # Docker build definition
- ├─ Jenkinsfile              # CI/CD Pipeline definition
+ ├─ Jenkinsfile              # CI/CD & Maintenance Pipeline
+ ├─ docker-compose.yml       # Service definition
  ├─ start.sh                 # Container entrypoint
  └─ README.md
 ```
@@ -90,16 +91,11 @@ p4bot/
 
 ## Installation
 
-This section walks through the **exact steps** to get p4bot running on your own machine using Docker.
-
 ### 1. Clone the repository
 
-1. Choose a folder on your machine, for example `C:\p4bot`.
-2. Clone from GitHub:
-
-   ```bash
-   git clone https://github.com/Hyeonjoon-Nam/p4bot.git C:\p4bot
-   ```
+```bash
+git clone [https://github.com/Hyeonjoon-Nam/p4bot.git](https://github.com/Hyeonjoon-Nam/p4bot.git) C:\p4bot
+```
 
 ### 2. Create your own `config.json`
 
@@ -122,12 +118,11 @@ All configuration happens in a single file.
 
 ```jsonc
 "poller": {
-  "webhook": "https://discord.com/api/webhooks/...",
+  "webhook": "[https://discord.com/api/webhooks/](https://discord.com/api/webhooks/)...",
   "depotFilter": "//your_depot/...",
   "intervalSeconds": 30
 }
 ```
-* **webhook**: Create a webhook in your Discord channel settings and paste the URL here.
 
 #### 2.3 Bot Token (`canworkBot`)
 
@@ -136,59 +131,45 @@ All configuration happens in a single file.
   "botToken": "YOUR_DISCORD_BOT_TOKEN_HERE"
 }
 ```
-* Create a bot in the [Discord Developer Portal](https://discord.com/developers/applications).
-* Enable **MESSAGE CONTENT INTENT** in the Bot settings.
-* Copy the token and paste it here.
 
 ---
 
-## Docker Build & Run (The New Way)
+## How to Run
 
-Instead of using Windows Task Scheduler, we now use Docker to run everything in the background.
+### Option A: Using Jenkins (Recommended)
+This repository includes a full **CI/CD pipeline** that handles **auto-deployment** and **session maintenance**.
 
-### 1. Build the Image
+1. Run Jenkins and the Bot using Docker Compose:
+   ```bash
+   docker-compose up -d --build
+   ```
+2. Access Jenkins at `http://localhost:8080`.
+3. Configure the `P4-Auto-Login` pipeline (using `Jenkinsfile`) to handle daily Perforce ticket renewal automatically.
 
-Run this command in the repository root. (Add `--no-cache` if you modified scripts).
+### Option B: Standalone (Docker only)
+If you don't need Jenkins, you can run the bot directly:
 
-```powershell
-docker build --no-cache --network=host -t p4bot:v1 .
-```
-
-### 2. Run the Container
-
-This runs the bot in the background (`-d`) and ensures it restarts automatically (`--restart unless-stopped`).
-We mount the `config.json` and `runtime/` folder so logs and state are saved on your host machine.
-
-```powershell
-docker run -d --name p4bot --restart unless-stopped `
-  -v ${PWD}/config.json:/app/config.json `
-  -v ${PWD}/runtime:/app/runtime `
+```bash
+docker run -d --name p4bot --restart unless-stopped \
+  -v ${PWD}/config.json:/app/config.json \
+  -v ${PWD}/runtime:/app/runtime \
   p4bot:v1
-```
-
-### 3. Verify Execution
-
-Check the logs to see if everything started correctly.
-
-```powershell
-docker logs -f p4bot
 ```
 
 ---
 
 ## Maintenance
 
-### 1. Automated Login (Recommended)
-This repository includes a **Jenkins pipeline** (`Jenkinsfile`) that handles maintenance automatically:
-- **Auto-Login:** Refreshes P4 tickets every 12 hours (prevents session expiry).
-- **Auto-Deploy:** Rebuilds and restarts the container when code changes are pushed to GitHub.
+**Session Management:**
+Perforce security tickets typically expire every 12 hours.
 
-Refer to the `Jenkinsfile` for the pipeline configuration.
+### 1. Automated (Jenkins)
+The included Jenkins pipeline automatically renews the ticket (`p4 login`) every 12 hours and restarts the service if needed. No manual action is required.
 
-### 2. Manual Login (If running standalone)
-If you are NOT using Jenkins and running the bot manually, you must refresh the login session once a day.
+### 2. Manual (Standalone)
+If you are running the bot without Jenkins, you must refresh the login session manually once a day:
 
-```powershell
+```bash
 # Enter the container and run p4 login
 docker exec -it p4bot p4 login
 ```
@@ -223,17 +204,16 @@ runtime/*.log
 
 ---
 
-## Roadmap
+## Roadmap & Status
 
-The focus of p4bot is shifting towards **infrastructure stability** and **cross-platform support** before expanding feature sets.
+### ✅ Completed
+- **Docker Support:** Containerized the toolkit to ensure it runs consistently on any environment (Linux/Windows).
+- **Jenkins CI/CD:** Implemented automated pipelines for `Auto-Login` (Session Management) and `Auto-Deploy` (CD).
+- **Cross-Platform Compatibility:** Refactored path handling to be environment-agnostic via Docker.
 
-### 1. DevOps & Infrastructure (Done)
-* **Docker Support:** Containerized the toolkit to ensure it runs consistently on any environment (Linux/Windows/Server).
-* **Jenkins CI/CD:** Implemented automated pipelines for `Auto-Login` (Session Management) and `Auto-Deploy` (CD).
-
-### 2. Cross-Platform Compatibility
-* **Path Normalization:** Refactoring path handling to support both Windows (`\`) and Linux (`/`) separators.
-* **Environment Agnostic:** Removing hardcoded system paths to allow flexible configuration across different operating systems.
+### 🔜 Future Improvements
+- Optional Swarm integration for direct changelist navigation.
+- Notification feature when a locked file becomes available.
 
 ---
 
