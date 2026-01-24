@@ -72,6 +72,7 @@ p4bot/
  │   └─ logs...
  ├─ config.example.json
  ├─ Dockerfile               # Docker build definition
+ ├─ Jenkinsfile              # CI/CD Pipeline definition
  ├─ start.sh                 # Container entrypoint
  └─ README.md
 ```
@@ -97,7 +98,7 @@ This section walks through the **exact steps** to get p4bot running on your own 
 2. Clone from GitHub:
 
    ```bash
-   git clone [https://github.com/Hyeonjoon-Nam/p4bot.git](https://github.com/Hyeonjoon-Nam/p4bot.git) C:\p4bot
+   git clone https://github.com/Hyeonjoon-Nam/p4bot.git C:\p4bot
    ```
 
 ### 2. Create your own `config.json`
@@ -121,7 +122,7 @@ All configuration happens in a single file.
 
 ```jsonc
 "poller": {
-  "webhook": "[https://discord.com/api/webhooks/](https://discord.com/api/webhooks/)...",
+  "webhook": "https://discord.com/api/webhooks/...",
   "depotFilter": "//your_depot/...",
   "intervalSeconds": 30
 }
@@ -175,18 +176,21 @@ docker logs -f p4bot
 
 ---
 
-## Maintenance (Important)
+## Maintenance
 
-### Daily Login (Manual for now)
-Since Perforce tickets typically expire every 12 hours, and the bot runs inside a container, **you must refresh the login session manually once a day**.
+### 1. Automated Login (Recommended)
+This repository includes a **Jenkins pipeline** (`Jenkinsfile`) that handles maintenance automatically:
+- **Auto-Login:** Refreshes P4 tickets every 12 hours (prevents session expiry).
+- **Auto-Deploy:** Rebuilds and restarts the container when code changes are pushed to GitHub.
 
-(Automated login via Jenkins is planned for the next update).
+Refer to the `Jenkinsfile` for the pipeline configuration.
+
+### 2. Manual Login (If running standalone)
+If you are NOT using Jenkins and running the bot manually, you must refresh the login session once a day.
 
 ```powershell
-# 1. Enter the container and run p4 login
+# Enter the container and run p4 login
 docker exec -it p4bot p4 login
-
-# 2. (Type your password and press Enter)
 ```
 
 ---
@@ -207,7 +211,7 @@ docker exec -it p4bot p4 login
 
 | Issue | Fix |
 |------|-----|
-| **`p4 trust` error** | Run `docker exec -it p4bot p4 trust -y` manually. |
+| **`p4 trust` error** | Run `docker exec -it p4bot p4 trust -y` manually (or use Jenkins Auto-Login). |
 | **Session expired** | Run `docker exec -it p4bot p4 login`. |
 | **Bot not responding** | Check logs with `docker logs --tail 50 p4bot`. |
 | **Call depth overflow** | Ensure `.ps1` scripts use absolute paths (fixed in v1). |
@@ -223,9 +227,9 @@ runtime/*.log
 
 The focus of p4bot is shifting towards **infrastructure stability** and **cross-platform support** before expanding feature sets.
 
-### 1. DevOps & Infrastructure (Current Focus)
-* **Docker Support (Done):** Containerizing the toolkit (Python bot + P4 CLI) to ensure it runs consistently on any environment (Linux/Windows/Server).
-* **Jenkins CI/CD (Next):** Implementing an automated pipeline for build verification and testing to streamline deployment.
+### 1. DevOps & Infrastructure (Done)
+* **Docker Support:** Containerized the toolkit to ensure it runs consistently on any environment (Linux/Windows/Server).
+* **Jenkins CI/CD:** Implemented automated pipelines for `Auto-Login` (Session Management) and `Auto-Deploy` (CD).
 
 ### 2. Cross-Platform Compatibility
 * **Path Normalization:** Refactoring path handling to support both Windows (`\`) and Linux (`/`) separators.
@@ -244,4 +248,3 @@ The focus of p4bot is shifting towards **infrastructure stability** and **cross-
 ## License
 
 MIT
-
