@@ -61,18 +61,12 @@ A Discord slash command that checks whether a specific file is currently opened 
 ```text
 p4bot/
  ├─ p4_poller/
- │   └─ p4-poller.ps1
  ├─ opened_watcher/
- │   └─ opened_watcher_min.ps1
  ├─ canwork_bot/
- │   └─ p4_canwork_bot.py
  ├─ runtime/                 # Mapped to container volume (Logs & State)
- │   ├─ last_change.txt
- │   ├─ opened_snapshot.json
- │   └─ logs...
  ├─ config.example.json
  ├─ Dockerfile               # Docker build definition
- ├─ Jenkinsfile              # CI/CD & Maintenance Pipeline
+ ├─ Jenkinsfile              # CI/CD Pipeline (Deployment)
  ├─ docker-compose.yml       # Service definition
  ├─ start.sh                 # Container entrypoint
  └─ README.md
@@ -116,6 +110,11 @@ All configuration happens in a single file.
 
 #### 2.2 Webhooks (`poller` & `openedWatcher`)
 
+**How to get a Webhook URL:**
+1. Go to your Discord Channel Settings (Gear icon).
+2. Click **Integrations** → **Webhooks** → **New Webhook**.
+3. Copy the **Webhook URL** and paste it below.
+
 ```jsonc
 "poller": {
   "webhook": "[https://discord.com/api/webhooks/](https://discord.com/api/webhooks/)...",
@@ -139,12 +138,93 @@ All configuration happens in a single file.
 ### Option A: Using Jenkins (Recommended)
 This repository includes a full **CI/CD pipeline** that handles **auto-deployment** and **session maintenance**.
 
-1. Run Jenkins and the Bot using Docker Compose:
+#### 1. Start Services
+Run Jenkins and the Bot using Docker Compose:
+```bash
+docker-compose up -d --build
+```
+
+#### 2. Unlock Jenkins
+1. Open `http://localhost:8080` in your browser.
+2. To get the initial admin password, run:
    ```bash
-   docker-compose up -d --build
+   docker exec p4bot-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
    ```
-2. Access Jenkins at `http://localhost:8080`.
-3. Configure the `P4-Auto-Login` pipeline (using `Jenkinsfile`) to handle daily Perforce ticket renewal automatically.
+3. Complete the "Install Suggested Plugins" steps and create your admin account.
+
+#### 3. Configure Credentials (Important!)
+You need to save your Perforce password in Jenkins so it can run `p4 login` securely.
+
+1. Go to **Manage Jenkins** → **Credentials** → **System** → **Global credentials**.
+2. Click **Add Credentials**.
+   - **Kind:** Secret text
+   - **ID:** `p4-password`  *(Must match this exact ID)*
+   - **Secret:** (Type your Perforce Password)
+3. Click **Create**.
+
+#### 4. Create Job 1: Auto-Deploy (`P4Bot-Deploy`)
+This job builds and runs the container whenever code changes.
+
+1. Click **New Item** → Name: `P4Bot-Deploy` → Select **Pipeline** → OK.
+2. Scroll to **Triggers**: Check **Poll SCM** and enter `* * * * *` (checks every minute).
+3. Scroll to **Pipeline**:
+   - **Definition:** Pipeline script from SCM
+   - **SCM:** Git
+   - **Repository URL:** (Enter your local path or GitHub URL)
+     - *Local Example:* `/var/jenkins_home/workspace/p4bot`
+     - *GitHub Example:* `https://github.com/Hyeonjoon-Nam/p4bot.git`
+   - **Branch Specifier:** `*/main`
+   - **Script Path:** `Jenkinsfile`
+4. Click **Save**.
+
+#### 5. Create Job 2: Auto-Login (`P4-Auto-Login`)
+This job refreshes the Perforce ticket every 12 hours.
+
+1. Click **New Item** → Name: `P4-Auto-Login` → Select **Pipeline** → OK.
+2. Scroll to **Triggers**: Check **Build periodically** and enter `H */12 * * *`.
+3. Scroll to **Pipeline**:
+   - **Definition:** Pipeline script
+   - **Script:** Copy and paste the code below (Update `P4_PORT` and `P4_USER`).
+
+```groovy
+pipeline {
+    agent any
+    environment {
+        // Must match the Credential ID you created in Step 3
+        P4_PASS = credentials('p4-password')
+        
+        // UPDATE THESE VALUES
+        P4_PORT = 'ssl:your-perforce-server:1666' 
+        P4_USER = 'your_username'
+    }
+    stages {
+        stage('Perforce Login') {
+            steps {
+                script {
+                    // 1. Trust the fingerprint
+                    sh 'docker exec p4bot p4 -p $P4_PORT trust -y'
+                    
+                    // 2. Login using the password credential
+                    sh '''
+                        set +x
+                        echo $P4_PASS | docker exec -i p4bot p4 -p $P4_PORT -u $P4_USER login
+                    '''
+                    
+                    // 3. Verify status
+                    sh 'docker exec p4bot p4 -p $P4_PORT -u $P4_USER login -s'
+                }
+            }
+        }
+    }
+}
+```
+4. Click **Save**.
+
+#### 6. Run
+Click **Build Now** on `P4Bot-Deploy` first to start the container.
+Then click **Build Now** on `P4-Auto-Login` to verify the login session.
+
+---
 
 ### Option B: Standalone (Docker only)
 If you don't need Jenkins, you can run the bot directly:
@@ -164,7 +244,7 @@ docker run -d --name p4bot --restart unless-stopped \
 Perforce security tickets typically expire every 12 hours.
 
 ### 1. Automated (Jenkins)
-The included Jenkins pipeline automatically renews the ticket (`p4 login`) every 12 hours and restarts the service if needed. No manual action is required.
+The `P4-Auto-Login` pipeline configured above automatically renews the ticket every 12 hours. No manual action is required.
 
 ### 2. Manual (Standalone)
 If you are running the bot without Jenkins, you must refresh the login session manually once a day:
@@ -212,7 +292,6 @@ runtime/*.log
 - **Cross-Platform Compatibility:** Refactored path handling to be environment-agnostic via Docker.
 
 ### 🔜 Future Improvements
-- Optional Swarm integration for direct changelist navigation.
 - Notification feature when a locked file becomes available.
 
 ---
